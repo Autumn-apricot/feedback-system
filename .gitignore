@@ -1,0 +1,35 @@
+# ---------- 构建产物 ----------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.jar
+*.war
+
+# ---------- IDE ----------
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+.apt_generated
+
+# ---------- 日志与临时文件 ----------
+*.log
+logs/
+*.tmp
+
+# ---------- 系统文件 ----------
+.DS_Store
+Thumbs.db
+
+# ---------- 本地配置覆盖 ----------
+# 主配置用 ${ENV:default} 读环境变量，一般不需要本地覆盖文件；
+# 如果你的环境确实需要，把敏感值放在下面这些文件里，它们不会进仓库。
+application-local.properties
+application-local.yml
+.env
