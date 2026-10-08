@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FeedbackNoticeConsumer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">feedback-system</a> &gt; <a href="index.source.html" class="el_package">com.dongqiuxing.feedback.consumer</a> &gt; <span class="el_source">FeedbackNoticeConsumer.java</span></div><h1>FeedbackNoticeConsumer.java</h1><pre class="source lang-java linenums">package com.dongqiuxing.feedback.consumer;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Component;
+
+/**
+ * 意见提交通知消费者
+ *
+ * &lt;p&gt;监听 feedback.queue，把生产者发来的 JSON 消息解析后打印。
+ * 真实业务中这里可以替换为发邮件、推企业微信、写审计日志等下游动作，
+ * 生产者（FeedbackServiceImpl）不需要做任何改动。&lt;/p&gt;
+ */
+<span class="fc" id="L16">@Slf4j</span>
+@Component
+<span class="fc" id="L18">public class FeedbackNoticeConsumer {</span>
+
+<span class="fc" id="L20">    private final ObjectMapper objectMapper = new ObjectMapper();</span>
+
+    @RabbitListener(queues = &quot;feedback.queue&quot;)
+    public void receiveMessage(String message) {
+<span class="fc" id="L24">        log.info(&quot;收到新意见通知: {}&quot;, message);</span>
+        try {
+<span class="fc" id="L26">            JsonNode node = objectMapper.readTree(message);</span>
+<span class="fc" id="L27">            log.info(&quot;通知详情 -&gt; 提交人: {} | 提交时间: {}&quot;,</span>
+<span class="fc" id="L28">                    node.path(&quot;username&quot;).asText(),</span>
+<span class="fc" id="L29">                    node.path(&quot;createTime&quot;).asText());</span>
+<span class="fc" id="L30">        } catch (Exception e) {</span>
+<span class="fc" id="L31">            log.warn(&quot;通知消息解析失败: &quot; + message, e);</span>
+<span class="fc" id="L32">        }</span>
+<span class="fc" id="L33">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

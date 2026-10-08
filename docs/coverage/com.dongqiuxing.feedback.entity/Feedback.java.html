@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Feedback.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">feedback-system</a> &gt; <a href="index.source.html" class="el_package">com.dongqiuxing.feedback.entity</a> &gt; <span class="el_source">Feedback.java</span></div><h1>Feedback.java</h1><pre class="source lang-java linenums">package com.dongqiuxing.feedback.entity;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+/**
+ * 意见反馈实体，映射 MySQL 的 feedback 表
+ *
+ * &lt;p&gt;注意：实体是要被写进 Redis 缓存、并作为 JSON 消息发到 RabbitMQ 的，
+ * 所以 LocalDateTime 字段用 @JsonFormat 固定日期格式，避免序列化出数组结构。&lt;/p&gt;
+ */
+<span class="pc bpc" id="L17" title="27 of 38 branches missed.">@Data</span>
+@TableName(&quot;feedback&quot;)
+public class Feedback {
+
+    /** 主键，数据库自增 */
+    @TableId(type = IdType.AUTO)
+<span class="fc" id="L23">    private Integer id;</span>
+
+    /** 提交人姓名 */
+<span class="fc" id="L26">    private String username;</span>
+
+    /** 意见内容 */
+<span class="fc" id="L29">    private String content;</span>
+
+    /** 提交时间 */
+    @JsonFormat(pattern = &quot;yyyy-MM-dd HH:mm:ss&quot;)
+<span class="fc" id="L33">    private LocalDateTime createTime;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

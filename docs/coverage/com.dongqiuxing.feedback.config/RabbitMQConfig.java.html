@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RabbitMQConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">feedback-system</a> &gt; <a href="index.source.html" class="el_package">com.dongqiuxing.feedback.config</a> &gt; <span class="el_source">RabbitMQConfig.java</span></div><h1>RabbitMQConfig.java</h1><pre class="source lang-java linenums">package com.dongqiuxing.feedback.config;
+
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.FanoutExchange;
+import org.springframework.amqp.core.Queue;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+
+/**
+ * RabbitMQ 配置类
+ *
+ * &lt;p&gt;声明 Fanout 类型交换器、持久化队列，并把队列绑定到交换器上。&lt;/p&gt;
+ *
+ * &lt;p&gt;选择 Fanout 而不是 Direct：意见提交通知属于广播语义，后续如果新增
+ * 「邮件通知」「数据统计」等订阅方，只需再声明一个队列并绑定到同一个交换器，
+ * 生产者代码完全不用改。&lt;/p&gt;
+ *
+ * &lt;p&gt;@Profile(&quot;!test&quot;)：测试环境不加载本类，也不启动 @RabbitListener 容器
+ * （见 spring.rabbitmq.listener.simple.auto-startup=false），
+ * 发送动作由 @MockBean 的 RabbitTemplate 接管，因此 mvn test 不需要本机 RabbitMQ。&lt;/p&gt;
+ */
+@Configuration
+@Profile(&quot;!test&quot;)
+<span class="nc" id="L26">public class RabbitMQConfig {</span>
+
+    /** Fanout 交换器：忽略路由键，把消息广播给所有绑定的队列 */
+    @Bean
+    public FanoutExchange feedbackExchange() {
+<span class="nc" id="L31">        return new FanoutExchange(&quot;feedback.exchange&quot;);</span>
+    }
+
+    /** 消息队列，durable=true 保证 Broker 重启后队列与消息不丢失 */
+    @Bean
+    public Queue feedbackQueue() {
+<span class="nc" id="L37">        return new Queue(&quot;feedback.queue&quot;, true);</span>
+    }
+
+    /** 把队列绑定到交换器 */
+    @Bean
+    public Binding bindingFeedbackQueue(FanoutExchange feedbackExchange, Queue feedbackQueue) {
+<span class="nc" id="L43">        return BindingBuilder.bind(feedbackQueue).to(feedbackExchange);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

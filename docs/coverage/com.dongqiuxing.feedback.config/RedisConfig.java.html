@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedisConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">feedback-system</a> &gt; <a href="index.source.html" class="el_package">com.dongqiuxing.feedback.config</a> &gt; <span class="el_source">RedisConfig.java</span></div><h1>RedisConfig.java</h1><pre class="source lang-java linenums">package com.dongqiuxing.feedback.config;
+
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.time.Duration;
+
+/**
+ * Redis 缓存配置类
+ *
+ * &lt;p&gt;Spring Data Redis 默认用 JdkSerializationRedisSerializer，对象会被写成不可读的
+ * 二进制串，在 redis-cli 里排查问题几乎没法看。这里换成 Jackson2JsonRedisSerializer
+ * 把缓存值写成可读 JSON，并注册 JavaTimeModule 以支持实体中的 LocalDateTime。&lt;/p&gt;
+ *
+ * &lt;p&gt;@Profile(&quot;!test&quot;)：测试环境不加载本类，缓存退化为 JVM 内存实现
+ * （见 src/test/resources/application-test.properties 的 spring.cache.type=simple），
+ * 这样 mvn test 不需要本机先起一个 Redis。&lt;/p&gt;
+ */
+@Configuration
+@Profile(&quot;!test&quot;)
+<span class="nc" id="L33">public class RedisConfig {</span>
+
+    @Bean
+    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        // Value 使用 Jackson JSON 序列化，便于 redis-cli 直接查看
+<span class="nc" id="L38">        Jackson2JsonRedisSerializer&lt;Object&gt; jacksonSerializer =</span>
+                new Jackson2JsonRedisSerializer&lt;&gt;(Object.class);
+
+<span class="nc" id="L41">        ObjectMapper objectMapper = new ObjectMapper();</span>
+<span class="nc" id="L42">        objectMapper.registerModule(new JavaTimeModule());</span>
+<span class="nc" id="L43">        objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);</span>
+<span class="nc" id="L44">        objectMapper.activateDefaultTyping(</span>
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL
+        );
+<span class="nc" id="L48">        jacksonSerializer.setObjectMapper(objectMapper);</span>
+
+<span class="nc" id="L50">        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()</span>
+<span class="nc" id="L51">                .entryTtl(Duration.ofMinutes(5))            // 缓存 5 分钟自动过期</span>
+<span class="nc" id="L52">                .serializeKeysWith(</span>
+                        RedisSerializationContext.SerializationPair
+<span class="nc" id="L54">                                .fromSerializer(new StringRedisSerializer()))</span>
+<span class="nc" id="L55">                .serializeValuesWith(</span>
+                        RedisSerializationContext.SerializationPair
+<span class="nc" id="L57">                                .fromSerializer(jacksonSerializer))</span>
+<span class="nc" id="L58">                .disableCachingNullValues();                // 不缓存空值，防止缓存穿透被放大</span>
+
+<span class="nc" id="L60">        return RedisCacheManager.builder(connectionFactory)</span>
+<span class="nc" id="L61">                .cacheDefaults(config)</span>
+<span class="nc" id="L62">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -6,6 +6,7 @@ import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
  * RabbitMQ 配置类
@@ -15,8 +16,13 @@ import org.springframework.context.annotation.Configuration;
  * <p>选择 Fanout 而不是 Direct：意见提交通知属于广播语义，后续如果新增
  * 「邮件通知」「数据统计」等订阅方，只需再声明一个队列并绑定到同一个交换器，
  * 生产者代码完全不用改。</p>
+ *
+ * <p>@Profile("!test")：测试环境不加载本类，也不启动 @RabbitListener 容器
+ * （见 spring.rabbitmq.listener.simple.auto-startup=false），
+ * 发送动作由 @MockBean 的 RabbitTemplate 接管，因此 mvn test 不需要本机 RabbitMQ。</p>
  */
 @Configuration
+@Profile("!test")
 public class RabbitMQConfig {
 
     /** Fanout 交换器：忽略路由键，把消息广播给所有绑定的队列 */

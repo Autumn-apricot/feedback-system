@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FeedbackController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">feedback-system</a> &gt; <a href="index.source.html" class="el_package">com.dongqiuxing.feedback.controller</a> &gt; <span class="el_source">FeedbackController.java</span></div><h1>FeedbackController.java</h1><pre class="source lang-java linenums">package com.dongqiuxing.feedback.controller;
+
+import com.dongqiuxing.feedback.entity.Feedback;
+import com.dongqiuxing.feedback.service.FeedbackService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+
+/**
+ * 意见反馈控制器
+ *
+ * &lt;p&gt;页面跳转与表单提交。表单提交成功后采用 Post/Redirect/Get 模式重定向到列表页，
+ * 避免用户刷新时重复提交。&lt;/p&gt;
+ */
+<span class="fc" id="L19">@Slf4j</span>
+@Controller
+<span class="fc" id="L21">public class FeedbackController {</span>
+
+    @Autowired
+    private FeedbackService feedbackService;
+
+    /** 首页导航 */
+    @GetMapping(&quot;/&quot;)
+    public String index() {
+<span class="fc" id="L29">        return &quot;index&quot;;</span>
+    }
+
+    /** 意见提交页面 */
+    @GetMapping(&quot;/submit&quot;)
+    public String submitPage(Model model) {
+        // 表单用 th:object 绑定，这里必须放一个空对象进 Model，否则页面渲染会报错
+<span class="fc" id="L36">        model.addAttribute(&quot;feedback&quot;, new Feedback());</span>
+<span class="fc" id="L37">        log.info(&quot;进入意见提交页面&quot;);</span>
+<span class="fc" id="L38">        return &quot;submit&quot;;</span>
+    }
+
+    /** 处理意见提交表单 */
+    @PostMapping(&quot;/submit&quot;)
+    public String submitFeedback(@ModelAttribute Feedback feedback) {
+<span class="fc" id="L44">        log.info(&quot;收到意见提交请求，提交人={}&quot;, feedback.getUsername());</span>
+<span class="fc" id="L45">        feedbackService.submitFeedback(feedback);</span>
+<span class="fc" id="L46">        return &quot;redirect:/list&quot;;</span>
+    }
+
+    /** 意见列表页面 */
+    @GetMapping(&quot;/list&quot;)
+    public String listPage(Model model) {
+<span class="fc" id="L52">        model.addAttribute(&quot;feedbacks&quot;, feedbackService.getAllFeedbacks());</span>
+<span class="fc" id="L53">        log.info(&quot;进入意见列表页面&quot;);</span>
+<span class="fc" id="L54">        return &quot;list&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

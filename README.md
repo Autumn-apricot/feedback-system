@@ -143,11 +143,47 @@ java -jar target/feedback-system-1.0.0.jar
 
 ---
 
+## 测试
+
+项目自带一套可以直接跑的自动化测试。克隆下来执行 `mvn test` 即可，
+**不需要先装好并启动 MySQL、Redis、RabbitMQ**（GitHub Actions 上每次 push 也会自动跑一遍，见 `.github/workflows/maven.yml`）。
+
+| 测试类 | 层次 | 用例数 | 说明 |
+| --- | --- | --- | --- |
+| `FeedbackApiIntegrationTest` | 接口集成 | 12 | MockMvc + H2，覆盖路由跳转、参数绑定、落库、MQ 消息、缓存命中与失效 |
+| `FeedbackServiceImplTest` | 业务层单元 | 9 | Mockito 替身，验证创建时间补全、先落库后通知、MQ 异常被吞掉 |
+| `FeedbackNoticeConsumerTest` | 消费者单元 | 4 | 畸形消息不能把异常抛给监听线程 |
+| `FeedbackDefectReproductionTest` | 缺陷复现 | 7 | 真实 HTTP，把 4 处已知缺陷固化成可重复执行的证据 |
+
+执行结果：**32 条用例全部通过**，核心业务类（Controller / Service / Consumer）行覆盖 100%。
+
+测试是怎么做到不依赖中间件的——三样外部依赖各换成进程内等价实现，业务代码与 SQL 一行没改：
+
+| 生产环境依赖 | 测试环境替代 |
+| --- | --- |
+| MySQL | H2 内存库（MySQL 兼容模式，表结构同构） |
+| Redis | Spring Cache 内存实现（`RedisConfig` 标注了 `@Profile("!test")`） |
+| RabbitMQ | `@MockBean RabbitTemplate`，监听容器 `auto-startup=false` |
+
+覆盖率报告在 `mvn test` 后生成于 `target/site/jacoco/index.html`，同时归档在 [`docs/coverage/`](docs/coverage/index.html)。
+
+延伸阅读：
+
+- [**测试报告**](docs/测试报告.md) —— 测试范围、用例设计方法、执行结果、4 处缺陷的复现步骤与修复建议、覆盖率明细
+- [**测试用例：意见提交模块**](docs/测试用例-意见提交模块.md) —— 20 条手工接口用例的完整数据与执行结论
+
+> 关于缺陷：`FeedbackDefectReproductionTest` 里断言的是**系统当前的错误行为**，
+> 所以它们现在是绿的，恰恰证明缺陷确实存在。修完代码后这些用例会立刻变红，
+> 那时应把它们改写成「修复后的正确期望」，让它们从「证明缺陷存在」转为「防止缺陷回归」。
+
+---
+
 ## 目录结构
 
 ```
 feedback-system/
 ├── pom.xml
+├── .github/workflows/maven.yml                  CI：push 后自动跑测试并归档报告
 ├── src/main/
 │   ├── java/com/dongqiuxing/feedback/
 │   │   ├── FeedbackApplication.java          启动类，@EnableCaching
@@ -164,9 +200,22 @@ feedback-system/
 │   │       └── impl/FeedbackServiceImpl.java 缓存 + MQ 的核心逻辑
 │   └── resources/
 │       ├── application.properties
-│       ├── sql/schema.sql
+│       ├── sql/schema.sql                    MySQL 建表脚本
 │       └── templates/{index,submit,list}.html
-└── docs/screenshots/
+├── src/test/
+│   ├── java/com/dongqiuxing/feedback/
+│   │   ├── FeedbackApiIntegrationTest.java          接口集成测试（MockMvc）
+│   │   ├── FeedbackDefectReproductionTest.java      缺陷复现测试（真实 HTTP）
+│   │   ├── consumer/FeedbackNoticeConsumerTest.java
+│   │   └── service/impl/FeedbackServiceImplTest.java
+│   └── resources/
+│       ├── application-test.properties      测试 profile：H2 + 内存缓存 + 不连 Broker
+│       └── schema-h2.sql                    H2 建表脚本，与 MySQL 表结构同构
+└── docs/
+    ├── 测试报告.md
+    ├── 测试用例-意见提交模块.md
+    ├── coverage/                             JaCoCo 覆盖率报告（HTML）
+    └── screenshots/
 ```
 
 ---

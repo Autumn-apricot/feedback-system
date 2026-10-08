@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -22,8 +23,13 @@ import java.time.Duration;
  * <p>Spring Data Redis 默认用 JdkSerializationRedisSerializer，对象会被写成不可读的
  * 二进制串，在 redis-cli 里排查问题几乎没法看。这里换成 Jackson2JsonRedisSerializer
  * 把缓存值写成可读 JSON，并注册 JavaTimeModule 以支持实体中的 LocalDateTime。</p>
+ *
+ * <p>@Profile("!test")：测试环境不加载本类，缓存退化为 JVM 内存实现
+ * （见 src/test/resources/application-test.properties 的 spring.cache.type=simple），
+ * 这样 mvn test 不需要本机先起一个 Redis。</p>
  */
 @Configuration
+@Profile("!test")
 public class RedisConfig {
 
     @Bean

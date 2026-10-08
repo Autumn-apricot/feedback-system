@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FeedbackServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">feedback-system</a> &gt; <a href="index.source.html" class="el_package">com.dongqiuxing.feedback.service.impl</a> &gt; <span class="el_source">FeedbackServiceImpl.java</span></div><h1>FeedbackServiceImpl.java</h1><pre class="source lang-java linenums">package com.dongqiuxing.feedback.service.impl;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.dongqiuxing.feedback.entity.Feedback;
+import com.dongqiuxing.feedback.mapper.FeedbackMapper;
+import com.dongqiuxing.feedback.service.FeedbackService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 意见反馈业务实现
+ *
+ * &lt;p&gt;这里集中体现了三个关注点：&lt;/p&gt;
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;b&gt;落库&lt;/b&gt;：MyBatis-Plus 的 insert 自动回填自增主键&lt;/li&gt;
+ *   &lt;li&gt;&lt;b&gt;缓存&lt;/b&gt;：列表查询走 @Cacheable，提交成功后用 @CacheEvict 整体失效，
+ *       保证用户提交完立刻能在列表页看到自己的意见&lt;/li&gt;
+ *   &lt;li&gt;&lt;b&gt;异步通知&lt;/b&gt;：提交成功后发 MQ 消息，通知逻辑不占用用户请求线程&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+<span class="fc" id="L30">@Slf4j</span>
+@Service
+<span class="fc" id="L32">public class FeedbackServiceImpl implements FeedbackService {</span>
+
+    @Autowired
+    private FeedbackMapper feedbackMapper;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+<span class="fc" id="L40">    private final ObjectMapper objectMapper = new ObjectMapper();</span>
+
+    /**
+     * 提交意见
+     *
+     * &lt;p&gt;@CacheEvict 里的 allEntries = true：列表缓存以整个 List 为粒度，
+     * 任何一条新增都会让旧缓存失效，所以直接清空而不是逐条更新。&lt;/p&gt;
+     */
+    @Override
+    @CacheEvict(value = &quot;feedbackList&quot;, allEntries = true)
+    public Feedback submitFeedback(Feedback feedback) {
+<span class="fc" id="L51">        feedback.setCreateTime(LocalDateTime.now());</span>
+<span class="fc" id="L52">        feedbackMapper.insert(feedback);</span>
+<span class="fc" id="L53">        log.info(&quot;意见已落库: id={}, 提交人={}&quot;, feedback.getId(), feedback.getUsername());</span>
+
+<span class="fc" id="L55">        sendNotice(feedback);</span>
+<span class="fc" id="L56">        return feedback;</span>
+    }
+
+    /**
+     * 查询全部意见（Redis 缓存）
+     *
+     * &lt;p&gt;第二次访问命中缓存时不会进这个方法，所以下面这行日志只会在缓存未命中时打印，
+     * 可直接用它来判断缓存是否生效。&lt;/p&gt;
+     */
+    @Override
+    @Cacheable(value = &quot;feedbackList&quot;)
+    public List&lt;Feedback&gt; getAllFeedbacks() {
+<span class="fc" id="L68">        log.info(&quot;缓存未命中，回源查询数据库获取意见列表&quot;);</span>
+<span class="fc" id="L69">        return feedbackMapper.selectList(null);</span>
+    }
+
+    /**
+     * 发送意见提交通知到 RabbitMQ
+     *
+     * &lt;p&gt;通知属于「尽力而为」的附加动作：MQ 挂了不该导致用户提交失败，
+     * 所以这里单独 try-catch，序列化或发送异常只记日志、不向上抛。&lt;/p&gt;
+     */
+    private void sendNotice(Feedback feedback) {
+        try {
+<span class="fc" id="L80">            Map&lt;String, Object&gt; message = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L81">            message.put(&quot;username&quot;, feedback.getUsername());</span>
+<span class="fc" id="L82">            message.put(&quot;content&quot;, feedback.getContent());</span>
+<span class="fc" id="L83">            message.put(&quot;createTime&quot;, feedback.getCreateTime().toString());</span>
+
+<span class="fc" id="L85">            String json = objectMapper.writeValueAsString(message);</span>
+<span class="fc" id="L86">            rabbitTemplate.convertAndSend(&quot;feedback.exchange&quot;, &quot;&quot;, json);</span>
+<span class="fc" id="L87">            log.info(&quot;已发送意见通知到 RabbitMQ: {}&quot;, json);</span>
+<span class="fc" id="L88">        } catch (Exception e) {</span>
+<span class="fc" id="L89">            log.error(&quot;意见通知发送失败，不影响提交结果&quot;, e);</span>
+<span class="fc" id="L90">        }</span>
+<span class="fc" id="L91">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
