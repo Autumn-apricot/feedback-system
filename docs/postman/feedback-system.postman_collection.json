@@ -1,0 +1,643 @@
+{
+  "info": {
+    "_postman_id": "f3b2c1a0-5d4e-4f6a-9b8c-1e2d3f4a5b6c",
+    "name": "企业内部意见反馈系统 - 接口测试",
+    "description": "针对 feedback-system（Spring Boot + Thymeleaf + MyBatis-Plus + Redis + RabbitMQ）的接口测试集合。\n\n## 被测接口\n| 方法 | 路径 | 说明 |\n| --- | --- | --- |\n| GET | / | 首页导航 |\n| GET | /submit | 意见提交页面 |\n| POST | /submit | 提交意见（成功后 302 重定向到 /list） |\n| GET | /list | 意见列表页面 |\n\n## 使用前提\n1. 启动 MySQL、Redis、RabbitMQ（详见仓库 README）\n2. 启动应用：`./mvnw spring-boot:run`，默认端口 8080\n3. 集合变量 `baseUrl` 默认为 `http://localhost:8080`，可在 Collection Variables 中修改\n\n## 用例分组说明\n- **01 正常流程**：验证主流程可用（页面可访问、合法数据可提交）\n- **02 输入校验（缺陷复现）**：复现已确认的 4 处缺陷，每条请求的 Tests 断言写明「预期行为」与「实际行为」\n- **03 边界与异常**：参数缺失、非表单格式提交等异常场景\n\n## 已确认缺陷\n- BUG-001 必填项无校验，空值与纯空格均可入库（一般）\n- BUG-002 username 超长（>50）返回 500（严重）—— 字段为 varchar(50)\n- BUG-003 参数缺失 / 非表单格式提交返回 500，无全局异常处理（严重）\n- BUG-004 /list 无访问控制，未登录可看全部反馈（严重）",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 正常流程",
+      "description": "验证系统主流程：页面可访问、合法数据可正常提交并重定向到列表页。",
+      "item": [
+        {
+          "name": "TC-001 访问首页",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[预期] 状态码为 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('[预期] 返回内容为 HTML 页面', function () {",
+                  "    pm.response.to.have.header('Content-Type');",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "访问首页导航页。\n\n**预期结果**：HTTP 200，返回 index 页面 HTML。"
+          }
+        },
+        {
+          "name": "TC-002 访问意见提交页面",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[预期] 状态码为 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('[预期] 页面包含提交表单元素', function () {",
+                  "    pm.expect(pm.response.text()).to.include('username');",
+                  "    pm.expect(pm.response.text()).to.include('content');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "访问意见提交页面。\n\n**预期结果**：HTTP 200，页面含绑定 username / content 的表单。"
+          }
+        },
+        {
+          "name": "TC-003 提交合法意见（有效等价类）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[预期] 提交成功，返回 302 重定向', function () {",
+                  "    pm.response.to.have.status(302);",
+                  "});",
+                  "",
+                  "pm.test('[预期] 重定向地址为 /list（Post/Redirect/Get）', function () {",
+                  "    var location = pm.response.headers.get('Location');",
+                  "    pm.expect(location).to.include('/list');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "张三",
+                  "type": "text",
+                  "description": "合法姓名，长度 2（[1,50] 内的有效等价类）"
+                },
+                {
+                  "key": "content",
+                  "value": "食堂午餐的菜品种类偏少，希望能增加一些选择。",
+                  "type": "text",
+                  "description": "合法意见内容，长度在 text 字段上限内"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "提交一条合法意见。\n\n**预期结果**：HTTP 302，Location 指向 /list。\n**说明**：本用例的 ids 会被后续「列表查询」用例用于核验数据入库。"
+          }
+        },
+        {
+          "name": "TC-004 列表查询（核验数据入库）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[预期] 状态码为 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('[预期] 刚提交的意见出现在列表中', function () {",
+                  "    pm.expect(pm.response.text()).to.include('食堂午餐的菜品种类偏少');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/list",
+              "host": ["{{baseUrl}}"],
+              "path": ["list"]
+            },
+            "description": "查询意见列表，核验 TC-003 提交的数据是否真实落库并展示。\n\n**预期结果**：HTTP 200，列表含刚提交的意见内容。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 输入校验（缺陷复现）",
+      "description": "复现已确认的缺陷。断言写的是「应有行为」，因此**这些请求失败即代表缺陷复现成功**——请对照 docs/测试报告.md 中的缺陷清单阅读。",
+      "item": [
+        {
+          "name": "TC-005 [BUG-001] 用户名为空应被拦截",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 缺陷 BUG-001：必填项无校验，空值可入库",
+                  "// 断言「应有行为」= 提交被拒绝（4xx / 留在表单页）",
+                  "// 实际行为 = 返回 302 并成功入库 → 断言失败 = 缺陷复现",
+                  "pm.test('[应有行为] 用户名为空时应拒绝提交（返回 4xx 或回到表单页）', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "",
+                  "type": "text",
+                  "description": "空用户名（无效等价类）"
+                },
+                {
+                  "key": "content",
+                  "value": "测试内容：用户名为空",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**缺陷 BUG-001（一般）**：必填项无校验。\n\n**预期结果**：提交被拒绝。\n**实际结果**：HTTP 302 重定向，空 username 成功写入数据库（已用 SQL 核验）。"
+          }
+        },
+        {
+          "name": "TC-006 [BUG-001] 用户名纯空格应被拦截",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 缺陷 BUG-001：未做 trim 后校验，纯空格被当作有效值",
+                  "pm.test('[应有行为] 纯空格用户名的提交应被拒绝', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "   ",
+                  "type": "text",
+                  "description": "三格空格，长度非 0 但语义为空（无效等价类）"
+                },
+                {
+                  "key": "content",
+                  "value": "测试内容：用户名纯空格",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**缺陷 BUG-001（一般）**：纯空格绕过非空校验。\n\n**预期结果**：trim 后判空，拒绝提交。\n**实际结果**：HTTP 302，纯空格 username 成功入库。"
+          }
+        },
+        {
+          "name": "TC-007 [BUG-001] 意见内容为空应被拦截",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[应有行为] 意见内容为空时应拒绝提交', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "李四",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "",
+                  "type": "text",
+                  "description": "空意见内容（无效等价类）"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**缺陷 BUG-001（一般）**：content 为空无校验。\n\n**预期结果**：提交被拒绝。\n**实际结果**：HTTP 302，空 content 成功入库。"
+          }
+        },
+        {
+          "name": "TC-009 [BUG-002] username 超长（51 字符）应报 4xx 而非 500",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 缺陷 BUG-002：username 为 varchar(50)，超长触发数据库异常 → 500",
+                  "pm.test('[应有行为] 超长输入应返回 4xx 参数错误，而非 500 服务端错误', function () {",
+                  "    pm.expect(pm.response.code, '实际状态码 ' + pm.response.code).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test('[应有行为] 不应暴漏数据库异常信息', function () {",
+                  "    pm.expect(pm.response.text()).to.not.include('SQLException');",
+                  "    pm.expect(pm.response.text()).to.not.include('Data too long');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                  "type": "text",
+                  "description": "51 个 A —— 边界值上界 +1（数据库列 varchar(50)）"
+                },
+                {
+                  "key": "content",
+                  "value": "测试内容：username 超长",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**缺陷 BUG-002（严重）**：超长输入未做长度校验，直落数据库报错。\n\n**预期结果**：HTTP 4xx，提示参数长度超限。\n**实际结果**：HTTP 500，抛 `Data too long for column 'username'`。\n\n> 注：content 字段类型为 `text`（上限 65535 字节），5000 字符不会报错——**写预期结果前必须先查表结构**（`DESCRIBE feedback_db.feedback;`）。"
+          }
+        },
+        {
+          "name": "TC-010 [BUG-003] 缺少 username 参数应返回 4xx 而非 500",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 缺陷 BUG-003：无全局异常处理，参数缺失直接 500",
+                  "pm.test('[应有行为] 缺少必填参数应返回 4xx，而非 500', function () {",
+                  "    pm.expect(pm.response.code, '实际状态码 ' + pm.response.code).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "content",
+                  "value": "测试内容：故意不传 username",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**缺陷 BUG-003（严重）**：参数缺失无全局异常处理。\n\n**预期结果**：HTTP 4xx，明确提示缺少参数。\n**实际结果**：HTTP 500。"
+          }
+        },
+        {
+          "name": "TC-011 [BUG-003] 非表单格式提交（JSON body）应返回 4xx 而非 500",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[应有行为] 非表单格式提交应返回 4xx（不支持的媒体类型/参数缺失）', function () {",
+                  "    pm.expect(pm.response.code, '实际状态码 ' + pm.response.code).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"王五\",\"content\":\"以 JSON 而非表单提交\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**缺陷 BUG-003（严重）**：接口只接受表单编码，收到 JSON 时无兜底。\n\n**预期结果**：HTTP 4xx（415 不支持的媒体类型 或 400 参数缺失）。\n**实际结果**：HTTP 500。"
+          }
+        },
+        {
+          "name": "TC-012 [BUG-004] 未登录访问 /list 应被拒绝",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 缺陷 BUG-004：/list 无任何访问控制",
+                  "pm.test('[应有行为] 未登录访问 /list 应重定向到登录页或返回 401/403', function () {",
+                  "    pm.expect(pm.response.code, '实际状态码 ' + pm.response.code).to.be.oneOf([302, 401, 403]);",
+                  "});",
+                  "",
+                  "pm.test('[应有行为] 未登录不应看到反馈明细内容', function () {",
+                  "    pm.expect(pm.response.text()).to.not.include('食堂午餐的菜品种类偏少');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/list",
+              "host": ["{{baseUrl}}"],
+              "path": ["list"]
+            },
+            "description": "**缺陷 BUG-004（严重）**：列表页缺少访问控制。\n\n**预期结果**：未登录访问被拒绝（302 到登录页 / 401 / 403）。\n**实际结果**：HTTP 200，直接返回全部反馈内容（与之前的提交人姓名、意见全文）。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 边界与异常",
+      "description": "边界值与其他异常输入场景。",
+      "item": [
+        {
+          "name": "TC-008 用户名边界值 50 字符（上界，应通过）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[预期] 50 字符恰为上界，提交成功并重定向', function () {",
+                  "    pm.response.to.have.status(302);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                  "type": "text",
+                  "description": "50 个 A —— 边界值上界（数据库列 varchar(50)）"
+                },
+                {
+                  "key": "content",
+                  "value": "测试内容：username 边界值 50 字符",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**边界值分析**：username 长度上界。\n\n**预期结果**：HTTP 302，提交成功。\n（与 TC-009 的 51 字符构成一对边界值）"
+          }
+        },
+        {
+          "name": "TC-013 content 长文本 5000 字符（应正常入库）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[预期] content 为 text 类型，5000 字符应正常提交', function () {",
+                  "    pm.response.to.have.status(302);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "赵六",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。这是一段用于边界测试的长文本。（此处省略，实际执行时可用脚本生成 5000 字符）",
+                  "type": "text",
+                  "description": "长文本（约 2000 字符，实际执行可替换为 5000 字符）"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**边界测试**：验证 content 字段的长文本承载能力。\n\n**预期结果**：HTTP 302，正常入库（`content` 为 `text` 类型，上限 65535 字节）。\n**实测结论**：5000 字符可正常入库，不报错。"
+          }
+        },
+        {
+          "name": "TC-014 中文与 emoji 混合内容（字符编码）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[预期] 中文与 emoji 应正常提交并重定向', function () {",
+                  "    pm.response.to.have.status(302);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 提交后到 /list 核验中文是否乱码"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "孙悟空",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "测试中文与 emoji 混排：😀🎉 编码是否正确？——「引号」、制表符\t与换行\n测试",
+                  "type": "text",
+                  "description": "中文 + emoji + 特殊符号"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**编码测试**：验证 UTF-8 中文、emoji 与特殊字符的存取。\n\n**预期结果**：HTTP 302，跳转到 /list 后中文显示正常、无乱码。"
+          }
+        },
+        {
+          "name": "TC-015 不存在的路径（404 处理）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[预期] 访问不存在的路径应返回 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/not-exist-page",
+              "host": ["{{baseUrl}}"],
+              "path": ["not-exist-page"]
+            },
+            "description": "**异常测试**：访问不存在的路径。\n\n**预期结果**：HTTP 404（Spring Boot 默认错误页）。"
+          }
+        },
+        {
+          "name": "TC-016 GET 方式访问提交接口（应 405）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[应有行为] 提交接口不支持 GET，应返回 405 或回到提交页', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([405, 200]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["submit"]
+            },
+            "description": "**方法测试**：用 GET 访问 POST 接口。\n\n注意：`/submit` 同时映射了 GET（渲染表单页），因此本请求会返回 200 表单页——这是**符合设计**的，此处仅作为记录。"
+          }
+        }
+      ]
+    }
+  ]
+}

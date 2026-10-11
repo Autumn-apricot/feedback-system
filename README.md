@@ -171,6 +171,7 @@ java -jar target/feedback-system-1.0.0.jar
 
 - [**测试报告**](docs/测试报告.md) —— 测试范围、用例设计方法、执行结果、4 处缺陷的复现步骤与修复建议、覆盖率明细
 - [**测试用例：意见提交模块**](docs/测试用例-意见提交模块.md) —— 20 条手工接口用例的完整数据与执行结论
+- [**Postman 接口测试集合**](docs/postman/) —— 16 条接口用例，Import 后可直接运行；含响应断言与 4 处缺陷的复现请求
 
 > 关于缺陷：`FeedbackDefectReproductionTest` 里断言的是**系统当前的错误行为**，
 > 所以它们现在是绿的，恰恰证明缺陷确实存在。修完代码后这些用例会立刻变红，
@@ -214,6 +215,7 @@ feedback-system/
 └── docs/
     ├── 测试报告.md
     ├── 测试用例-意见提交模块.md
+    ├── postman/                              Postman 接口测试集合（Collection + 使用说明）
     ├── coverage/                             JaCoCo 覆盖率报告（HTML）
     └── screenshots/
 ```
